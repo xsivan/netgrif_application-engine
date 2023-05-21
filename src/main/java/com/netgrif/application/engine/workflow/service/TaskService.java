@@ -6,10 +6,7 @@ import com.netgrif.application.engine.auth.domain.LoggedUser;
 import com.netgrif.application.engine.auth.service.interfaces.IUserService;
 import com.netgrif.application.engine.elastic.service.interfaces.IElasticTaskMappingService;
 import com.netgrif.application.engine.elastic.service.interfaces.IElasticTaskService;
-import com.netgrif.application.engine.history.domain.taskevents.AssignTaskEventLog;
-import com.netgrif.application.engine.history.domain.taskevents.CancelTaskEventLog;
-import com.netgrif.application.engine.history.domain.taskevents.DelegateTaskEventLog;
-import com.netgrif.application.engine.history.domain.taskevents.FinishTaskEventLog;
+import com.netgrif.application.engine.history.domain.taskevents.*;
 import com.netgrif.application.engine.history.service.IHistoryService;
 import com.netgrif.application.engine.petrinet.domain.*;
 import com.netgrif.application.engine.petrinet.domain.arcs.Arc;
@@ -18,6 +15,7 @@ import com.netgrif.application.engine.petrinet.domain.arcs.ResetArc;
 import com.netgrif.application.engine.petrinet.domain.dataset.Field;
 import com.netgrif.application.engine.petrinet.domain.dataset.UserFieldValue;
 import com.netgrif.application.engine.petrinet.domain.dataset.UserListFieldValue;
+import com.netgrif.application.engine.petrinet.domain.dataset.logic.action.Action;
 import com.netgrif.application.engine.petrinet.domain.events.EventPhase;
 import com.netgrif.application.engine.petrinet.domain.events.EventType;
 import com.netgrif.application.engine.petrinet.domain.roles.ProcessRole;
@@ -156,10 +154,8 @@ public class TaskService implements ITaskService {
         outcomes.addAll((eventService.runActions(transition.getPostAssignActions(), useCase, task, transition)));
         useCase = evaluateRules(useCase.getStringId(), task, EventType.ASSIGN, EventPhase.POST);
         historyService.save(new AssignTaskEventLog(task, useCase, EventPhase.POST, user.getStringId()));
-
         AssignTaskEventOutcome outcome = new AssignTaskEventOutcome(useCase, task, outcomes);
         addMessageToOutcome(transition, EventType.ASSIGN, outcome);
-
         log.info("[" + useCase.getStringId() + "]: Task [" + task.getTitle() + "] in case [" + useCase.getTitle() + "] assigned to [" + user.getEmail() + "]");
         return outcome;
     }
@@ -252,6 +248,208 @@ public class TaskService implements ITaskService {
         historyService.save(new FinishTaskEventLog(task, useCase, EventPhase.POST, user.getStringId()));
         log.info("[" + useCase.getStringId() + "]: Task [" + task.getTitle() + "] in case [" + useCase.getTitle() + "] assigned to [" + user.getEmail() + "] was finished");
 
+        return outcome;
+    }
+
+    /**
+     * Overloaded method to perform 'opentask' event, obtain logged user, call another overloaded method openTask and at end return outcome.
+     *
+     * @param taskId, string value representing identifikator of task, on whitch we want to perfrom 'opentask'
+     *
+     * @return outcome of OpenTaskEventOutcome type
+     */
+    @Override
+    public OpenTaskEventOutcome openTask(String taskId) throws IllegalArgumentException {
+        //Get actualy logged user or system
+        LoggedUser user = userService.getLoggedOrSystem().transformToLoggedUser();
+
+        //Perform event
+        return openTask(user, taskId);
+    }
+
+    /**
+     * Overloaded method to perform 'opentask' event, obtain task via repository, check if task is present.
+     * If no return exception.
+     * Else obtain user via repository (this action is checked too soo)
+     *      - If no user is obtained return exception
+     *      - Else call another overloaded method openTask and at end return outcome.
+     *
+     * @param taskId, string value representing identifikator of task, on whitch we want to perfrom 'opentask'
+     * @param loggedUser, logged user represent as LoggedUser object
+     *
+     * @return outcome of OpenTaskEventOutcome type
+     */
+    @Override
+    @Transactional
+    public OpenTaskEventOutcome openTask(LoggedUser loggedUser, String taskId) throws IllegalArgumentException {
+        //Get task from DB via repository
+        Optional<Task> taskOptional = taskRepository.findById(taskId);
+
+        //Check if task is present
+        if (!taskOptional.isPresent())
+            throw new IllegalArgumentException("Could not find task with id [" + taskId + "]");
+
+        //Get task
+        Task task = taskOptional.get();
+
+        //Get user from DB via repository
+        IUser user = userService.resolveById(loggedUser.getId(), true);
+
+        //Perform event
+        return openTask(task, user);
+    }
+
+    /**
+     * Overloaded method to perform 'opentask' event, the final one with logic. Perform event and reacion as action in PRE / POST phase.
+     * Do all kinds of checks, evaluations and at the end return outcome.
+     *
+     * @param user, represent user as Task object
+     * @param task, task on whitch we want to perfrom 'opentask', represented as  Task object
+     *
+     * @return outcome as OpenTaskEventOutcome object
+     */
+    @Override
+    @Transactional
+    public OpenTaskEventOutcome openTask(Task task, IUser user) {
+        //Find case via repository, our task is in this case (if case is found, or exception)
+        //Also initalize petri net (arcs, tokens ...)
+        Case useCase = workflowService.findOne(task.getCaseId());
+
+        //Get transition from initilized petri net throu case (transition is task representation in petri net)
+        Transition transition = useCase.getPetriNet().getTransition(task.getTransitionId());
+
+        //Create outcomes, run actions (reaction to event) in PRE phase and saved this outcomes into our variable
+        List<EventOutcome> outcomes = new ArrayList<>(eventService.runActions(transition.getPreOpenActions(), useCase, task, transition));
+
+        //Find task via reposiory (or throw exception)
+        task = this.findOne(task.getStringId());
+
+        //Evaluate rules in PRE phase (check all BRMS rules using Drools)
+        useCase = evaluateRules(useCase.getStringId(), task, EventType.OPENTASK, EventPhase.PRE);
+
+        //Save changes on DB after PRE phase is done
+        historyService.save(new OpenTaskEventLog(task, useCase, EventPhase.PRE, user.getStringId()));
+
+        //Run actions (reaction to event) in POST phase, and all outcomes into allready existing outcome from PRE phase
+        outcomes.addAll(this.eventService.runActions(transition.getPostOpenActions(), useCase, task, transition));
+
+        //Evaluate rules in POST phase (check all BRMS rules using Drools)
+        useCase = evaluateRules(useCase.getStringId(), task, EventType.OPENTASK, EventPhase.POST);
+
+        //Create instance OpenTaskEventOutcome for input, using all outcomes from PRE and POST phase (of course identified with case and task instance)
+        OpenTaskEventOutcome outcome = new OpenTaskEventOutcome(useCase, task, outcomes);
+
+        //Add message to output
+        addMessageToOutcome(transition, EventType.OPENTASK, outcome);
+
+        //Save changes on DB after POST phase is done
+        historyService.save(new OpenTaskEventLog(task, useCase, EventPhase.POST, user.getStringId()));
+
+        //Just log, about success event
+        log.info("[" + useCase.getStringId() + "]: Task [" + task.getTitle() + "] in case [" + useCase.getTitle() + "] was OPENED");
+
+        //return outcome
+        return outcome;
+    }
+
+    /**
+     * Overloaded method to perform 'closetask' event, obtain logged user, call another overloaded method closeTask and at end return outcome.
+     *
+     * @param taskId, string value representing identifikator of task, on whitch we want to perfrom 'closetask'
+     *
+     * @return outcome of CloseTaskEventOutcome type
+     */
+    @Override
+    public CloseTaskEventOutcome closeTask(String taskId) throws IllegalArgumentException {
+        //Get actualy logged user or system
+        LoggedUser user = userService.getLoggedOrSystem().transformToLoggedUser();
+
+        //Perform event
+        return closeTask(user, taskId);
+    }
+
+    /**
+     * Overloaded method to perform 'closetask' event, obtain task via repository, check if task is present.
+     * If no return exception.
+     * Else obtain user via repository (this action is checked too soo)
+     *      - If no user is obtained return exception
+     *      - Else call another overloaded method closetask and at end return outcome.
+     *
+     * @param taskId, string value representing identifikator of task, on whitch we want to perfrom 'closetask'
+     * @param loggedUser, logged user represent as LoggedUser object
+     *
+     * @return outcome of CloseTaskEventOutcome type
+     */
+    @Override
+    @Transactional
+    public CloseTaskEventOutcome closeTask(LoggedUser loggedUser, String taskId) throws IllegalArgumentException {
+        //Get task from DB via repository
+        Optional<Task> taskOptional = taskRepository.findById(taskId);
+
+        //Check if task is present
+        if (!taskOptional.isPresent())
+            throw new IllegalArgumentException("Could not find task with id [" + taskId + "]");
+
+        //get task
+        Task task = taskOptional.get();
+
+        //Get user from DB via repository
+        IUser user = userService.resolveById(loggedUser.getId(), true);
+
+        //Perform event
+        return closeTask(task, user);
+    }
+
+    /**
+     * Overloaded method to perform 'closetask' event, the final one with logic. Perform event and reacion as action in PRE / POST phase.
+     * Do all kinds of checks, evaluations and at the end return outcome.
+     *
+     * @param user, represent user as Task object
+     * @param task, task on whitch we want to perfrom 'closetask', represented as  Task object
+     *
+     * @return outcome as CloseTaskEventOutcome object
+     */
+    @Override
+    @Transactional
+    public CloseTaskEventOutcome closeTask(Task task, IUser user) {
+        //Find case via repository, our task is in this case (if case is found, or exception)
+        //Also initalize petri net (arcs, tokens ...)
+        Case useCase = workflowService.findOne(task.getCaseId());
+
+        //Get transition from initilized petri net throu case (transition is task representation in petri net)
+        Transition transition = useCase.getPetriNet().getTransition(task.getTransitionId());
+
+        //Create outcomes, run actions (reaction to event) in PRE phase and saved this outcomes into our variable
+        List<EventOutcome> outcomes = new ArrayList<>(eventService.runActions(transition.getPreCloseActions(), useCase, task, transition));
+
+        //Find task via reposiory (or throw exception)
+        task = this.findOne(task.getStringId());
+
+        //Evaluate rules in PRE phase (check all BRMS rules using Drools)
+        useCase = evaluateRules(useCase.getStringId(), task, EventType.CLOSETASK, EventPhase.PRE);
+
+        //Save changes on DB after PRE phase is done
+        historyService.save(new CloseTaskEventLog(task, useCase, EventPhase.PRE, user.getStringId()));
+
+        //Run actions (reaction to event) in POST phase, and all outcomes into allready existing outcome from PRE phase
+        outcomes.addAll(this.eventService.runActions(transition.getPostCloseActions(), useCase, task, transition));
+
+        //Evaluate rules in POST phase (check all BRMS rules using Drools)
+        useCase = evaluateRules(useCase.getStringId(), task, EventType.CLOSETASK, EventPhase.POST);
+
+        //Create instance CloseTaskEventOutcome for input, using all outcomes from PRE and POST phase (of course identified with case and task instance)
+        CloseTaskEventOutcome outcome = new CloseTaskEventOutcome(useCase, task, outcomes);
+
+        //Add message to output
+        addMessageToOutcome(transition, EventType.CLOSETASK, outcome);
+
+        //Save changes on DB after POST phase is done
+        historyService.save(new CloseTaskEventLog(task, useCase, EventPhase.POST, user.getStringId()));
+
+        //Just log, about success event
+        log.info("[" + useCase.getStringId() + "]: Task [" + task.getTitle() + "] in case [" + useCase.getTitle() + "] was CLOSED");
+
+        //return outcome
         return outcome;
     }
 

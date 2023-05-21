@@ -101,6 +101,36 @@ public class TaskAuthorizationService extends AbstractAuthorizationService imple
         return loggedUser.isAdmin() || (userPerm == null ? (rolePerm != null && rolePerm) : userPerm);
     }
 
+    /**
+     *  Method will check if user have rights to perform 'opentask' event.
+     *
+     * @param loggedUser, represent actualy logged user or system to by verified
+     * @param taskId, string identifikator o task on witch we want perform 'opentak' event
+     *
+     * @return 'true' if user have right or 'false'
+     * */
+    @Override
+    public boolean canCallOpenTaskEvent(LoggedUser loggedUser, String taskId) {
+        Boolean rolePerm = userHasAtLeastOneRolePermission(loggedUser, taskId, RolePermission.OPEN_TASK_EVENT);
+        Boolean userPerm = userHasUserListPermission(loggedUser, taskId, RolePermission.OPEN_TASK_EVENT);
+        return loggedUser.isAdmin() || (userPerm == null ? (rolePerm != null && rolePerm) : userPerm);
+    }
+
+    /**
+     *  Method will check if user have rights to perform 'closetask' event.
+     *
+     * @param loggedUser, represent actualy logged user or system to by verified
+     * @param taskId, string identifikator o task on witch we want perform 'closetask' event
+     *
+     * @return 'true' if user have right or 'false'
+     * */
+    @Override
+    public boolean canCallCloseTaskEvent(LoggedUser loggedUser, String taskId) {
+        Boolean rolePerm = userHasAtLeastOneRolePermission(loggedUser, taskId, RolePermission.CLOSE_TASK_EVENT);
+        Boolean userPerm = userHasUserListPermission(loggedUser, taskId, RolePermission.CLOSE_TASK_EVENT);
+        return loggedUser.isAdmin() || (userPerm == null ? (rolePerm != null && rolePerm) : userPerm);
+    }
+
     @Override
     public boolean canCallDelegate(LoggedUser loggedUser, String taskId) {
         Boolean rolePerm = userHasAtLeastOneRolePermission(loggedUser, taskId, RolePermission.DELEGATE);

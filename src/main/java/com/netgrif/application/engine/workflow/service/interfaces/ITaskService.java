@@ -6,10 +6,7 @@ import com.netgrif.application.engine.petrinet.domain.throwable.TransitionNotExe
 import com.netgrif.application.engine.workflow.domain.Case;
 import com.netgrif.application.engine.workflow.domain.Task;
 import com.netgrif.application.engine.workflow.domain.eventoutcomes.dataoutcomes.SetDataEventOutcome;
-import com.netgrif.application.engine.workflow.domain.eventoutcomes.taskoutcomes.AssignTaskEventOutcome;
-import com.netgrif.application.engine.workflow.domain.eventoutcomes.taskoutcomes.CancelTaskEventOutcome;
-import com.netgrif.application.engine.workflow.domain.eventoutcomes.taskoutcomes.DelegateTaskEventOutcome;
-import com.netgrif.application.engine.workflow.domain.eventoutcomes.taskoutcomes.FinishTaskEventOutcome;
+import com.netgrif.application.engine.workflow.domain.eventoutcomes.taskoutcomes.*;
 import com.netgrif.application.engine.workflow.web.requestbodies.TaskSearchRequest;
 import com.netgrif.application.engine.workflow.web.responsebodies.TaskReference;
 import org.springframework.data.domain.Page;
@@ -74,6 +71,20 @@ public interface ITaskService {
 
     @Transactional(rollbackFor = Exception.class)
     List<CancelTaskEventOutcome> cancelTasks(List<Task> tasks, IUser user);
+
+    @Transactional
+    OpenTaskEventOutcome openTask(Task task, IUser user) throws TransitionNotExecutableException;
+
+    OpenTaskEventOutcome openTask(LoggedUser loggedUser, String taskId) throws IllegalArgumentException, TransitionNotExecutableException;
+
+    OpenTaskEventOutcome openTask(String taskId) throws IllegalArgumentException, TransitionNotExecutableException;
+
+    @Transactional
+    CloseTaskEventOutcome closeTask(Task task, IUser user) throws TransitionNotExecutableException;
+
+    CloseTaskEventOutcome closeTask(LoggedUser loggedUser, String taskId) throws IllegalArgumentException, TransitionNotExecutableException;
+
+    CloseTaskEventOutcome closeTask(String taskId) throws IllegalArgumentException, TransitionNotExecutableException;
 
     @Transactional
     CancelTaskEventOutcome cancelTask(Task task, IUser user);

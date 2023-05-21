@@ -141,6 +141,40 @@ public class TaskController extends AbstractTaskController {
         return super.cancel(loggedUser, taskId, locale);
     }
 
+    /**
+     *  opentask event REST API end point
+     * */
+    @PreAuthorize("@taskAuthorizationService.canCallOpenTaskEvent(#auth.getPrincipal(), #taskId)")
+    @Operation(summary = "Open task",
+            description = "Caller must be able to call open task event, or must be an ADMIN",
+            security = {@SecurityRequirement(name = "BasicAuth")})
+    @GetMapping(value = "/opentask/{id}", produces = MediaTypes.HAL_JSON_VALUE)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "OK"),
+            @ApiResponse(responseCode = "403", description = "Caller doesn't fulfill the authorisation requirements for open task event"),
+    })
+    public EntityModel<EventOutcomeWithMessage> openTask(Authentication auth, @PathVariable("id") String taskId, Locale locale) {
+        LoggedUser loggedUser = (LoggedUser) auth.getPrincipal();
+        return super.openTask(loggedUser, taskId, locale);
+    }
+
+    /**
+     *  closetask event REST API end point
+     * */
+    @PreAuthorize("@taskAuthorizationService.canCallCloseTaskEvent(#auth.getPrincipal(), #taskId)")
+    @Operation(summary = "Close task",
+            description = "Caller must be able to call close task event, or must be an ADMIN",
+            security = {@SecurityRequirement(name = "BasicAuth")})
+    @GetMapping(value = "/closetask/{id}", produces = MediaTypes.HAL_JSON_VALUE)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "OK"),
+            @ApiResponse(responseCode = "403", description = "Caller doesn't fulfill the authorisation requirements for close task event"),
+    })
+    public EntityModel<EventOutcomeWithMessage> closeTask(Authentication auth, @PathVariable("id") String taskId, Locale locale) {
+        LoggedUser loggedUser = (LoggedUser) auth.getPrincipal();
+        return super.closeTask(loggedUser, taskId, locale);
+    }
+
     @Override
     @Operation(summary = "Get all tasks assigned to logged user", security = {@SecurityRequirement(name = "BasicAuth")})
     @GetMapping(value = "/my", produces = MediaTypes.HAL_JSON_VALUE)

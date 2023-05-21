@@ -1,19 +1,25 @@
 package com.netgrif.application.engine.petrinet.domain.dataset.logic
 
 import com.netgrif.application.engine.petrinet.domain.I18nString
+import com.netgrif.application.engine.petrinet.domain.dataset.FrontEndActionType
 import com.netgrif.application.engine.workflow.domain.Task
 import com.querydsl.core.annotations.QueryExclude
 
+/**
+ * ChangedField object represent changed field :D
+ * */
 @QueryExclude
 class ChangedField {
 
     String id
     List<TaskPair> changedOn
     Map<String, Object> attributes
+    boolean onlyFrontEndAction
 
     ChangedField() {
         attributes = new HashMap<>()
         changedOn = new ArrayList<>()
+        onlyFrontEndAction = false
     }
 
     ChangedField(String id) {
@@ -112,5 +118,15 @@ class ChangedField {
             this.taskId = taskId
             this.transition = transition
         }
+    }
+
+    //New logic KOKOS
+    boolean isOnlyFrontEndAction() {
+        return onlyFrontEndAction
+    }
+
+    void setOnlyFrontEndAction(boolean onlyFrontEndAction) {
+        this.onlyFrontEndAction = onlyFrontEndAction
+        if(onlyFrontEndAction) this.addAttribute("isOnlyFrontEndAction", true)
     }
 }

@@ -23,6 +23,10 @@ public interface ITaskAuthorizationService {
 
     boolean canCallAssign(LoggedUser loggedUser, String taskId);
 
+    boolean canCallOpenTaskEvent(LoggedUser loggedUser, String taskId);
+
+    boolean canCallCloseTaskEvent(LoggedUser loggedUser, String taskId);
+
     boolean canCallDelegate(LoggedUser loggedUser, String taskId);
 
     boolean canCallFinish(LoggedUser loggedUser, String taskId) throws IllegalTaskStateException;

@@ -1,13 +1,14 @@
 package com.netgrif.application.engine.petrinet.domain.roles;
 
-
 public enum RolePermission {
     DELEGATE("delegate"),
     CANCEL("cancel"),
     ASSIGN("assign"),
     FINISH("finish"),
     SET("set"),
-    VIEW("view");
+    VIEW("view"),
+    OPEN_TASK_EVENT("open_task_event"),
+    CLOSE_TASK_EVENT("close_task_event");
 
     private String value;
 

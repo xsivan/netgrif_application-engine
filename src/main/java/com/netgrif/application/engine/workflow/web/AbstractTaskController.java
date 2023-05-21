@@ -137,6 +137,56 @@ public abstract class AbstractTaskController {
         }
     }
 
+    /**
+     * Call 'opentask' event to be perfomed.
+     * If execution is ok, return EntityModel successMessage with outcome data.
+     * Else return EntityModel errorMessage
+     *      - if error type is IllegalArgumentWithChangedFieldsException, add to error message outcome data
+     *      - else return only error
+     *
+     * @param loggedUser, instance of LoggedUser representing actually logged user
+     * @param taskId, string value representing identifikator of task, on whitch we want to perfrom 'opentask'
+     * @param locale, instance of java class that represents a specific geographical, political, or cultural region
+     */
+    public EntityModel<EventOutcomeWithMessage> openTask(LoggedUser loggedUser, String taskId, Locale locale) {
+        try {
+            return EventOutcomeWithMessageResource.successMessage("LocalisedTask " + taskId + " OPEN event",
+                    LocalisedEventOutcomeFactory.from(taskService.openTask(loggedUser, taskId), locale));
+        } catch (Exception e) {
+            log.error("Task [" + taskId + "] OPEN event failed: ", e);
+            if (e instanceof IllegalArgumentWithChangedFieldsException) {
+                return EventOutcomeWithMessageResource.errorMessage(e.getMessage(), LocalisedEventOutcomeFactory.from(((IllegalArgumentWithChangedFieldsException) e).getOutcome(), locale));
+            } else {
+                return EventOutcomeWithMessageResource.errorMessage(e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Call 'closetask' event to be perfomed.
+     * If execution is ok, return EntityModel successMessage with outcome data.
+     * Else return EntityModel errorMessage
+     *      - if error type is IllegalArgumentWithChangedFieldsException, add to error message outcome data
+     *      - else return only error
+     *
+     * @param loggedUser, instance of LoggedUser representing actually logged user
+     * @param taskId, string value representing identifikator of task, on whitch we want to perfrom 'opentask'
+     * @param locale, instance of java class that represents a specific geographical, political, or cultural region
+     */
+    public EntityModel<EventOutcomeWithMessage> closeTask(LoggedUser loggedUser, String taskId, Locale locale) {
+        try {
+            return EventOutcomeWithMessageResource.successMessage("LocalisedTask " + taskId + " CLOSE event",
+                    LocalisedEventOutcomeFactory.from(taskService.closeTask(loggedUser, taskId), locale));
+        } catch (Exception e) {
+            log.error("Task [" + taskId + "] CLOSE event failed: ", e);
+            if (e instanceof IllegalArgumentWithChangedFieldsException) {
+                return EventOutcomeWithMessageResource.errorMessage(e.getMessage(), LocalisedEventOutcomeFactory.from(((IllegalArgumentWithChangedFieldsException) e).getOutcome(), locale));
+            } else {
+                return EventOutcomeWithMessageResource.errorMessage(e.getMessage());
+            }
+        }
+    }
+
     public PagedModel<LocalisedTaskResource> getMy(Authentication auth, Pageable pageable, PagedResourcesAssembler<Task> assembler, Locale locale) {
         Page<Task> page = taskService.findByUser(pageable, ((LoggedUser) auth.getPrincipal()).transformToUser());
 

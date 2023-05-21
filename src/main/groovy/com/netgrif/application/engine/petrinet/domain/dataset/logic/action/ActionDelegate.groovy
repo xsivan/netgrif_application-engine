@@ -525,6 +525,27 @@ class ActionDelegate {
          }]
     }
 
+    /**
+     * New method that represend frontend action openDialogWindow.
+     * Create new outcome as SetDataEventOutcome, set all nececary atributes and add this outcome to global list of all outcomes.
+     *
+     * @param label, represent dialog window title (header value)
+     * @param text, represent dialog window text/content (body value)
+     * */
+    def openDialogWindow(String label, String text) {
+        def date = new Date()
+
+        ChangedField changedField = new ChangedField("EMPTY_" + date.getTime())
+        changedField.addAttribute("dialogTitle", label)
+        changedField.addAttribute("dialogContent", text)
+        changedField.addAttribute("frontEndActionType", FrontEndActionType.OPEN_DIALOG)
+        changedField.setOnlyFrontEndAction(true)
+
+        SetDataEventOutcome outcome = createSetDataEventOutcome()
+        outcome.addChangedField(changedField.id, changedField)
+        this.outcomes.add(outcome)
+    }
+
     void executeTasks(Map dataSet, String taskId, Closure<Predicate> predicateClosure) {
         List<String> caseIds = searchCases(predicateClosure)
         QTask qTask = new QTask("task")

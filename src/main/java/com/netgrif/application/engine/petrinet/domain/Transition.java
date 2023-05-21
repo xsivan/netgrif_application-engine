@@ -190,6 +190,34 @@ public class Transition extends Node {
         return getPostActions(EventType.DELEGATE);
     }
 
+    /**
+     *  @retun return actions, in PRE phase for opentask event
+     */
+    public List<Action> getPreOpenActions() {
+        return getPreActions(EventType.OPENTASK);
+    }
+
+    /**
+     *  @retun return actions, in POST phase for opentask event
+     */
+    public List<Action> getPostOpenActions() {
+        return getPostActions(EventType.OPENTASK);
+    }
+
+    /**
+     *  @retun return actions, in PRE phase for closetask event
+     */
+    public List<Action> getPreCloseActions() {
+        return getPreActions(EventType.CLOSETASK);
+    }
+
+    /**
+     *  @retun return actions, in POST phase for closetask event
+     */
+    public List<Action> getPostCloseActions() {
+        return getPostActions(EventType.CLOSETASK);
+    }
+
     private List<Action> getPreActions(EventType type) {
         if (events.containsKey(type))
             return events.get(type).getPreActions();
